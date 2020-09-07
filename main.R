@@ -124,17 +124,19 @@ DL <- function(year=2007, aoi=aoi, satellite='LANDSAT', outdir='results/PH_dam1_
   return(r_list)
 }
 
+##################################################
+
 #download RS inputs in blocks 
 landsat_yrs <- c(1991:2018)
 plt <- read.csv(paste0(main.dir,'data/sample_sites.csv')) #assuming point data (and not polygons) are available
 coordinates(plt) <- ~long+lat
 
 source(paste0(main.dir,'scripts/MakeBlockPolygon.R')) #point to square polygon function
-aoi <- MakeBlockPolygon(plt, 0.1, 1)
+aoi <- MakeBlockPolygon(plt, 0.1, 1) #10x10km blocks
 aoi1 <- lapply(landsat_yrs, function(x) DL(x, aoi[1,], 'LANDSAT', 
                                         paste0('results/PH_',plt$site[1],'_100m/'),100))  #resampled to 100m (faster demo)
 
-#loop the aoi polygons for ndvi time series download 
+#OR loop the aoi polygons for ndvi time series download 
 for (i in 1:nrow(aoi)){
   lapply(landsat_yrs, function(x) DL(x, aoi[i,], 'LANDSAT', 
                                           paste0('results/PH_',plt$site[i],'_100m/'),100))
