@@ -132,11 +132,11 @@ coordinates(plt) <- ~long+lat
 source(paste0(main.dir,'scripts/MakeBlockPolygon.R')) #point to square polygon function
 aoi <- MakeBlockPolygon(plt, 0.1, 1)
 aoi1 <- lapply(landsat_yrs, function(x) DL(x, aoi[1,], 'LANDSAT', 
-                                        paste0('results/PH_',plt$site[1],'_30m/'),30)) #original 30m resolution
+                                        paste0('results/PH_',plt$site[1],'_100m/'),100))  #resampled to 100m (faster demo)
 
 #loop the aoi polygons for ndvi time series 
 for (i in 1:nrow(aoi)){
   lapply(landsat_yrs, function(x) DL(x, aoi[i,], 'LANDSAT', 
-                                          paste0('results/PH_',plt$site[i],'_100m/'),100)) #resampled to 100m (faster demo)
+                                          paste0('results/PH_',plt$site[i],'_100m/'),100))
 }
 
