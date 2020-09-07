@@ -1,17 +1,17 @@
-### REMOTE SENSING INPUTS DOWNLOADER USING RGEE
+### GEE DATA DOWNLOADER USING RGEE
 
 # preliminaries... assuming you already installed rgee
 rm(list=ls())
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(rgdal,sf,raster,cptcity,rgee,foreach,doParallel)
-ee_Initialize(email='arnanaraza2006@gmail.com',drive = TRUE)
+ee_Initialize(email='arnanaraza2006@gmail.com') ####!!!!!!!!
 
 # global variables
 main.dir <- 'D:/RGEE/'
 setwd(main.dir)
 
-## Funciton to download satellite data within polygons from csv/shp 
-DL <- function(year, aoi, satellite, outdir, rsl){
+## Function to download satellite data in areas of interest (aoi)
+DL <- function(year=2007, aoi=aoi, satellite='LANDSAT', outdir='results/PH_dam1_100m', rsl=30){
   
   # Year filter
   year2 <- as.character(year+1)
@@ -40,7 +40,7 @@ DL <- function(year, aoi, satellite, outdir, rsl){
     getQABits <- function(image, qa) {
       qa <- sum(2^(which(rev(unlist(strsplit(as.character(qa), "")) == 1))-1))
       image$bitwiseAnd(qa)$lt(1)}
-    bnames <- c('swir2', 'swir1', 'nir', 'red', 'pixel_qa')
+    bnames <- c('swir2', 'swir1', 'nir', 'red', 'pixel_qa') #bands of interest
     
     if (year >= 2013){
       b <- c("B7", "B5", "B5", "B4","pixel_qa")
@@ -92,7 +92,7 @@ DL <- function(year, aoi, satellite, outdir, rsl){
     # Create a yearly composite
     ndvi <- sat.col$filterBounds(ee_roi)$filterDate(start,end)$map(clean_ndvi)$max()
     ndwi1 <- sat.col$filterBounds(ee_roi)$filterDate(start,end)$map(clean_ndwi1)$max()
-    img <- ee$Image(ndvi)$addBands(ndwi1)
+    img <- ee$Image(ndvi)$addBands(ndwi1) #did not include ndwi for faster demo
   }
   
   
@@ -117,16 +117,16 @@ DL <- function(year, aoi, satellite, outdir, rsl){
       region = geometry,
       dsn = dsn,
       scale = rsl,
-      via = "getInfo",
+      via = "getInfo", #saves locally but with pixel limit
       maxPixels=1e+100)
     r_list <- c(r_list, ee_raster)
   }
   return(r_list)
 }
 
-#download RS inputs in raster blocks 
-landsat_yrs <- c(2000:2018)
-plt <- read.csv(paste0(main.dir,'data/sample_sites.csv'))
+#download RS inputs in blocks 
+landsat_yrs <- c(1991:2018)
+plt <- read.csv(paste0(main.dir,'data/sample_sites.csv')) #assuming point data (and not polygons) are available
 coordinates(plt) <- ~long+lat
 
 source(paste0(main.dir,'scripts/MakeBlockPolygon.R')) #point to square polygon function
@@ -134,7 +134,7 @@ aoi <- MakeBlockPolygon(plt, 0.1, 1)
 aoi1 <- lapply(landsat_yrs, function(x) DL(x, aoi[1,], 'LANDSAT', 
                                         paste0('results/PH_',plt$site[1],'_100m/'),100))  #resampled to 100m (faster demo)
 
-#loop the aoi polygons for ndvi time series 
+#loop the aoi polygons for ndvi time series download 
 for (i in 1:nrow(aoi)){
   lapply(landsat_yrs, function(x) DL(x, aoi[i,], 'LANDSAT', 
                                           paste0('results/PH_',plt$site[i],'_100m/'),100))
