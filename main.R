@@ -1,15 +1,14 @@
 ### REMOTE SENSING INPUTS DOWNLOADER USING RGEE
 
-# prelims
+# preliminaries... assuming you already installed rgee
 rm(list=ls())
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(rgdal,sf,raster,cptcity,rgee,foreach,doParallel)
 ee_Initialize(email='arnanaraza2006@gmail.com',drive = TRUE)
 
-# globals
+# global variables
 main.dir <- 'D:/RGEE/'
 setwd(main.dir)
-source('D:/RGEE/scripts/MakeBlockPolygon.R')
 
 ## Funciton to download satellite data within polygons from csv/shp 
 DL <- function(year, aoi, satellite, outdir, rsl){
@@ -26,7 +25,7 @@ DL <- function(year, aoi, satellite, outdir, rsl){
     st_geometry() %>%
     sf_as_ee()
   
-  # Get data
+  # Get ALOS-PALSAR data and take the mean of image collection
   if (satellite == 'ALOS'){
     sat.col <-ee$ImageCollection("JAXA/ALOS/PALSAR/YEARLY/SAR") #2011-2015 missing 
     filter <- sat.col$filterBounds(ee_roi)$filterDate(start,end)
@@ -34,6 +33,7 @@ DL <- function(year, aoi, satellite, outdir, rsl){
     img <- filter$select(b)$mean()
   }
   
+  # Get Landsat data including overlapping years between two Landsat satellites
   else if (satellite == 'LANDSAT'){
     
     # Filter out poor quality pixels
@@ -56,7 +56,7 @@ DL <- function(year, aoi, satellite, outdir, rsl){
       sat.col <- sat.col0$merge(sat.col1)
     } else{print('wrong year')}
     
-    # clean the bands and VIs
+    # clean the bands and calculate VIs
     clean_bnds <- function(img) {
       bnds <- img$select(bnames[-5])
       qa <- img$select("pixel_qa")
@@ -96,7 +96,7 @@ DL <- function(year, aoi, satellite, outdir, rsl){
   }
   
   
-  # Block-level download
+  # Polygon/Block-level download
   dir.create(file.path(main.dir, outdir))
   outdir <- paste0(main.dir,outdir)
   
@@ -126,19 +126,17 @@ DL <- function(year, aoi, satellite, outdir, rsl){
 
 #download RS inputs in raster blocks 
 landsat_yrs <- c(2000:2018)
-plt <- read.csv('D:/RGEE/data/sample_sites.csv') 
+plt <- read.csv(paste0(main.dir,'data/sample_sites.csv'))
 coordinates(plt) <- ~long+lat
-aoi <- MakeBlockPolygon(plt, 0.1, 1) #block polygons
+
+source(paste0(main.dir,'scripts/MakeBlockPolygon.R')) #point to square polygon function
+aoi <- MakeBlockPolygon(plt, 0.1, 1)
 aoi1 <- lapply(landsat_yrs, function(x) DL(x, aoi[1,], 'LANDSAT', 
-                                        paste0('results/PH_',plt$site[1],'_30m/'),30))
+                                        paste0('results/PH_',plt$site[1],'_30m/'),30)) #original 30m resolution
 
 #loop the aoi polygons for ndvi time series 
 for (i in 1:nrow(aoi)){
   lapply(landsat_yrs, function(x) DL(x, aoi[i,], 'LANDSAT', 
-                                          paste0('results/PH_',plt$site[i],'_100m/'),100))
+                                          paste0('results/PH_',plt$site[i],'_100m/'),100)) #resampled to 100m (faster demo)
 }
-
-
-r[r==0] <- NA
-
 
